@@ -4,8 +4,6 @@ import sbt.addCompilerPlugin
 scalacOptions in ThisBuild ++= Options.flags
 scalacOptions in (Compile, console) --= Options.consoleExclusions
 
-//these two fix the issue with sbt stage hanging at scaladoc for evolutions-tool
-
 val macroParadise = addCompilerPlugin(("org.scalameta" % "paradise" % Versions.macroParadise).cross(CrossVersion.full))
 
 val kindProjector = addCompilerPlugin(
@@ -26,8 +24,6 @@ val commonSettings = Seq(
   libraryDependencies ++= vivalidiDeps
 )
 
-
 def makeDep(project: Project) = project % "compile->compile;test->test;it->it;it->test"
 
 val vivalidi = (project in file(".")).settings(commonSettings, libraryDependencies ++= vivalidiDeps)
-
