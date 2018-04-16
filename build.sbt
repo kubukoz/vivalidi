@@ -24,6 +24,6 @@ val commonSettings = Seq(
   libraryDependencies ++= vivalidiDeps
 )
 
-def makeDep(project: Project) = project % "compile->compile;test->test;it->it;it->test"
+def makeDep(project: Project) = project % "compile->compile;test->test"
 
 val vivalidi = (project in file(".")).settings(commonSettings, libraryDependencies ++= vivalidiDeps)
