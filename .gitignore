@@ -1,0 +1,6 @@
+*.class
+.idea
+.bloop
+target/
+**/secret.conf
+**/.DS_Store
