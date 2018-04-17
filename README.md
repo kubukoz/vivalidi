@@ -6,7 +6,9 @@
 
 Elegant, effect-agnostic validations for Scala DTOs
 
-**Warning: this library is as experimental as they come. You're highly discouraged from using it in production**, although you might want to check it out in side projects or contribute to the upcoming planning for a more stable API.
+**Warning: this library is as experimental as they come (it doesn't even have a logo yet).
+You're highly discouraged from using it in production**, although you might want to check it out in side projects
+or contribute to the upcoming planning for a more stable API.
 
 ## SBT dependency
 
