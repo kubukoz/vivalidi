@@ -39,7 +39,7 @@ val result: F[CreateV[Transaction]] = Vivalidi.init[TransactionToCreate, CreateV
 
 tl;dr `CreateV[_] : Applicative` - so far the validators (e.g. `validateLength`, a custom function taking String and returning
 `F[CreateV[String]]`) are responsible for raising errors, but in the future there might be no type parameter for errors, just
-an appropriate `MonadError` context bound. `F[_]` is just an applicative (like `Future`), and `TranscationToCreate` is
+an appropriate `MonadError` context bound. `F[_]` is just an applicative (like `Future`), and `TransactionToCreate` is
 the input type (which `toCreate` matches).
 
 ## FAQ
