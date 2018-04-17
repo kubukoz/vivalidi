@@ -18,7 +18,7 @@ Replace x.x.x with the version you want (the latest non-snapshot release version
 The library is cross-compiled to Scala 2.12 and Scala.js - for the latter, replace `%%` with `%%%`.
 
 ## Usage
-Coming soon - until then, please enjoy this sample:
+Coming soon - until then, please enjoy this raw, uncut sample from my app:
 
 ```scala
 type CreateV[T] = ValidatedNel[CreationError, T]
