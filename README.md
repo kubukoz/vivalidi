@@ -25,7 +25,7 @@ Coming soon - until then, please enjoy this raw, uncut sample from my app:
 ```scala
 type CreateV[T] = ValidatedNel[CreationError, T]
 
-import com.kubukoz.vivalidi.Vivalidi._, dsl._
+import vivalidi.Vivalidi, vivalidi.syntax.all._
 
 val result: F[CreateV[Transaction]] = Vivalidi.init[TransactionToCreate, CreateV, F]
   .pure(TransactionId(0))
