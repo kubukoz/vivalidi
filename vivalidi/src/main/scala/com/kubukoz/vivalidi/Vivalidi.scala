@@ -7,6 +7,7 @@ import cats.syntax.all._
 import cats.{Applicative, Apply, Traverse}
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList, HNil}
+import scala.language.higherKinds
 
 object Vivalidi {
 
