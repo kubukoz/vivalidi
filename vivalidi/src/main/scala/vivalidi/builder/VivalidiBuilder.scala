@@ -1,42 +1,18 @@
-package com.kubukoz.vivalidi
+package vivalidi.builder
 
 import cats.data.NonEmptyList
-import cats.instances.function._
 import cats.kernel.Semigroup
-import cats.syntax.all._
-import cats.{Applicative, Apply, Traverse}
+import cats.instances.function._
+import cats.{Applicative, Apply}
+import vivalidi.syntax
 import shapeless.ops.hlist.Reverse
-import shapeless.{::, Generic, HList, HNil}
-import scala.language.higherKinds
+import shapeless.{::, Generic, HList}
 
-object Vivalidi {
-
-  def init[Subject, Errors[_]: Applicative, F[_]: Applicative]: VivalidiBuilder[Subject, Errors, HNil, F] =
-    new VivalidiBuilder[Subject, Errors, HNil, F](_ => Applicative[F].compose[Errors].pure(HNil))
-
-  implicit class SyncValidatorToAsync[Errors[_], A, B](val validator: A => Errors[B]) extends AnyVal {
-    def liftF[G[_]: Applicative]: A => G[Errors[B]] = validator.andThen(Applicative[G].pure)
-  }
-
-  object dsl {
-    //selectors
-    def withWhole[Subject, Field](f: Subject => Field): Subject => (Field, Subject) = s => (f(s), s)
-    def pass[Subject]: Subject => Subject                                           = identity
-
-    //checkers
-    def sequencing[F[_]: Applicative, E[_]: Applicative, G[_]: Traverse, Field, Output](
-      f: Field => F[E[Output]]): G[Field] => F[E[G[Output]]] = _.traverse(f).map(_.sequence)
-  }
-}
-
-final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](memory: Subject => F[Errors[SuccessRepr]])(
-  implicit F: Applicative[F],
-  E: Applicative[Errors]) {
+private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](
+  memory: Subject => F[Errors[SuccessRepr]])(implicit F: Applicative[F], E: Applicative[Errors]) {
 
   type SyncValidator[I, O]  = I => Errors[O]
   type AsyncValidator[I, O] = I => F[Errors[O]]
-
-  import Vivalidi._
 
   def pure[Field](value: Field): VivalidiBuilder[Subject, Errors, Field :: SuccessRepr, F] =
     just(Function.const(value))
@@ -47,6 +23,7 @@ final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](memo
   def sync[Field, Output](toField: Subject => Field)(
     checkFirst: SyncValidator[Field, Output],
     checkMore: SyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F] = {
+    import syntax.validators._
 
     async(toField)(checkFirst.liftF[F], checkMore.map(_.liftF[F]): _*)
   }
@@ -70,7 +47,7 @@ final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](memo
 
   def to[Success]: To[Success] = new To[Success]
 
-  class To[Success] {
+  class To[Success] private[vivalidi] {
 
     def run[SuccessReverseRepr <: HList](subject: Subject)(
       implicit gen: Generic.Aux[Success, SuccessReverseRepr],
