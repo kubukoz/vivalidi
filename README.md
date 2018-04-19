@@ -1,8 +1,10 @@
 # vivalidi
 
 [![Build Status](https://travis-ci.org/kubukoz/vivalidi.svg?branch=master)](https://travis-ci.org/kubukoz/vivalidi)
+[![Latest version](https://index.scala-lang.org/kubukoz/vivalidi/vivalidi/latest.svg)](https://index.scala-lang.org/kubukoz/vivalidi/vivalidi)
 [![Maven Central](https://img.shields.io/maven-central/v/com.kubukoz/vivalidi_2.12.svg)](http://search.maven.org/#search%7Cga%7C1%7Cvivalidi)
 [![License](http://img.shields.io/:license-Apache%202-green.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
+
 
 Elegant, effect-agnostic validations for Scala DTOs
 
