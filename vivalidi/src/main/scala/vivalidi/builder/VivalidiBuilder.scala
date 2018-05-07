@@ -3,13 +3,17 @@ package vivalidi.builder
 import cats.data.NonEmptyList
 import cats.kernel.Semigroup
 import cats.instances.function._
-import cats.{Applicative, Apply}
+import cats.{Applicative, Apply, Monad}
+import cats.temp.par.Par
 import vivalidi.syntax
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList}
 
+import scala.language.higherKinds
+
 private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](
-  memory: Subject => F[Errors[SuccessRepr]])(implicit F: Applicative[F], E: Applicative[Errors]) {
+  memory: Subject => F[Errors[SuccessRepr]])(implicit F: Par[F], E: Applicative[Errors]) {
+  implicit val monF: Monad[F] = F.parallel.monad
 
   type SyncValidator[I, O]  = I => Errors[O]
   type AsyncValidator[I, O] = I => F[Errors[O]]
