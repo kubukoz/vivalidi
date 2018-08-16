@@ -1,39 +1,42 @@
 package vivalidi
 import cats.Show
-import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import cats.data._
 import cats.effect.IO
 import cats.implicits._
-import org.scalatest.concurrent.Eventually
 import org.scalatest.{Matchers, WordSpec}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global //for timer/parallel of IO
+import scala.language.higherKinds //for timer/parallel of IO
 
-class VivalidiTests extends WordSpec with Matchers with Eventually {
-  "Validations" should {
+class VivalidiTests extends WordSpec with Matchers {
+  type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
+
+  "Parallel validation" should {
     "be parallel" in {
+
       val sleepLength: FiniteDuration = 1.second
       val Δ                           = 200.millis
 
-      def delayReturnPure[T: Show]: T => IO[ValidatedNel[String, T]] = { t =>
+      def delayReturnPure[T: Show, E]: T => EitherT[IO, E, T] = { t =>
         val sleep = IO.sleep(sleepLength)
 
-        sleep.as(Validated.valid(t))
+        val action = IO(println(show"starting $t")) *> sleep <* IO(println(show"finishing $t"))
+
+        EitherT(action.as(t.asRight[E]))
       }
 
-      val validation: Person => IO[ValidatedNel[String, Person]] = Vivalidi
-        .init[Person, ValidatedNel[String, ?], IO]
+      val validation: Person => EitherT[IO, Unit, Person] = Vivalidi
+        .init[Person, EitherT[IO, Unit, ?], Unit]
         .async(_.id)(delayReturnPure, delayReturnPure, delayReturnPure)
         .async(_.name)(delayReturnPure)
         .async(_.age)(delayReturnPure)
         .to[Person]
-        .run(_)
+        .run
 
       val person = Person(1, "hello", 21)
 
-      eventually {
-        validation(person).unsafeRunTimed(sleepLength + Δ) shouldBe Some(person.valid)
-      }
+      validation(person).value.timeout(sleepLength + Δ).unsafeRunSync() shouldBe person.asRight
     }
   }
 
@@ -42,33 +45,36 @@ class VivalidiTests extends WordSpec with Matchers with Eventually {
 
       case class UserId(value: Long)
 
-      def failIO[T](error: String): T => IO[ValidatedNel[String, T]] = _ => error.invalidNel.pure[IO]
+      def failIO[T](error: String): T => EitherNelT[IO, String, T] =
+        _ => error.leftNel[T].liftTo[EitherNelT[IO, String, ?]]
 
-      val validation: UserId => IO[ValidatedNel[String, UserId]] = Vivalidi
-        .init[UserId, ValidatedNel[String, ?], IO]
+      val validation: UserId => EitherNelT[IO, String, UserId] = Vivalidi
+        .init[UserId, EitherNelT[IO, String, ?], NonEmptyList[String]]
         .async(_.value)(failIO("oops"), failIO("foo"), failIO("bar"))
         .to[UserId]
-        .run(_)
+        .run
 
       val person = UserId(1)
 
-      validation(person).unsafeRunSync shouldBe NonEmptyList.of("oops", "foo", "bar").invalid
+      validation(person).value.unsafeRunSync shouldBe NonEmptyList.of("oops", "foo", "bar").asLeft
     }
   }
 
   "Validations on multiple fields" should {
     "compose errors in correct order" in {
-      val validation: Person => IO[ValidatedNel[String, Person]] = Vivalidi
-        .init[Person, ValidatedNel[String, ?], IO]
-        .async(_.id)(_ => "wrong id".invalidNel[Long].pure[IO])
-        .sync(_.name)(_.valid)
-        .async(_.age)(_ => "wrong age".invalidNel[Int].pure[IO])
+      type E[A] = EitherNelT[IO, String, A]
+
+      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi
+        .init[Person, E, NonEmptyList[String]]
+        .sync(_.id)(_ => "wrong id".leftNel[Long])
+        .just(_.name)
+        .async(_.age)(_ => "wrong age".leftNel[Int].liftTo[E])
         .to[Person]
-        .run(_)
+        .run
 
       val person = Person(1, "hello", 21)
 
-      validation(person).unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").invalid
+      validation(person).value.unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft
     }
   }
 }
