@@ -45,7 +45,6 @@ private[vivalidi] final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList
 
     new VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F, P](
       //memory first to maintain order of errors in case of failure
-      //see
       parMapV(memory, mapAndCheck)((memory, field) => field :: memory)
     )
   }
