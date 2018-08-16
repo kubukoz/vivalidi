@@ -55,3 +55,7 @@ the input type (which `toCreate` matches).
 2. Does this have any external dependencies?
 
 Yes, there's a direct dependency on `cats-core` and `shapeless`.
+
+3. Tests?
+
+lmao

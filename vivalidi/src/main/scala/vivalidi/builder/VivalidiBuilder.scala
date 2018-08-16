@@ -1,13 +1,13 @@
 package vivalidi.builder
 
 import cats.data.NonEmptyList
+import cats.implicits._
 import cats.kernel.Semigroup
-import cats.instances.function._
-import cats.{Applicative, Apply, Monad}
-import cats.temp.par.Par
-import vivalidi.syntax
+import cats.temp.par._
+import cats.{Applicative, Monad}
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList}
+import vivalidi.syntax
 
 import scala.language.higherKinds
 
@@ -60,9 +60,14 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
     }
   }
 
-  private def applicativeStackT[T] = Applicative[T => ?].compose[F].compose[Errors]
-  private val applicativeStack     = applicativeStackT[Subject]
-  private def validatorSemigroup[I, T: Semigroup]: Semigroup[AsyncValidator[I, T]] = {
-    Apply.semigroup[AsyncValidator[I, ?], T](applicativeStackT[I], Semigroup[T])
+  private def applicativeStackT[T]: Applicative[λ[A => T => F[Errors[A]]]] =
+    Applicative[T => ?].compose[F].compose[Errors]
+
+  private val applicativeStack = applicativeStackT[Subject]
+
+  private type AsyncParValidator[I, O] = I => F.ParAux[Errors[O]]
+
+  private def validatorSemigroup[I, T: Semigroup]
+    : Semigroup[AsyncValidator[I, T]] = { (a, b) => i => (a(i), b(i)).parMapN((aE, bE) => (aE, bE).mapN(Semigroup[T].combine))
   }
 }
