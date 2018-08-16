@@ -10,7 +10,7 @@ object Dependencies {
   val simulacrum     = "com.github.mpilquist" %% "simulacrum"     % Versions.simulacrum
   val scalacheckCore = "org.scalacheck"       %% "scalacheck"     % Versions.scalacheck % Test
 
-  val cats       = Seq(catsCore, catsParTemp, catsEffect)
+  val cats       = Seq(catsCore, catsParTemp, catsEffect % Test)
   val scalacheck = Seq(scalacheckCore)
 }
 

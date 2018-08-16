@@ -22,7 +22,7 @@ val commonSettings = Seq(
   organization := "com.kubukoz",
   scalaVersion := "2.12.4",
   description := "Elegant, effect-agnostic validations for Scala DTOs",
-  version := "0.0.6",
+  version := "0.0.7",
   macroParadise,
   kindProjector,
   libraryDependencies ++= vivalidiDeps
