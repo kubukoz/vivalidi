@@ -35,6 +35,7 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
     checkFirst: AsyncValidator[Field, Output],
     checkMore: AsyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F, P] = {
 
+    //semigroup for success values in case of multiple validations on a single field
     //configurable?
     val outputSemigroup = Semigroup.instance[Output]((a, _) => a)
 
@@ -44,7 +45,9 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
     val mapAndCheck: AsyncValidator[Subject, Output] = toField.andThen(checkAll)
 
     new VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F, P](
-      parMapV(mapAndCheck, memory)(_ :: _)
+      //memory first to maintain order of errors in case of failure
+      //see
+      parMapV(memory, mapAndCheck)((memory, field) => field :: memory)
     )
   }
 
