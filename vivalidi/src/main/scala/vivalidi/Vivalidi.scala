@@ -1,7 +1,7 @@
 package vivalidi
 
-import cats.temp.par._
-import cats.{Applicative, ApplicativeError, Parallel}
+import cats.temp.par.Par
+import cats.{Applicative, ApplicativeError}
 import shapeless.HNil
 import vivalidi.builder.VivalidiBuilder
 
@@ -9,16 +9,16 @@ import scala.language.higherKinds
 
 object Vivalidi {
 
-  def apply[Subject, F[_]](implicit F: Par[F]): PartiallyApplied[Subject, F, F.ParAux] = {
-    new PartiallyApplied[Subject, F, F.ParAux]()(F.parallel)
+  def apply[Subject, F[_]: Par]: PartiallyApplied[Subject, F] = {
+    new PartiallyApplied[Subject, F]
   }
 
-  sealed class PartiallyApplied[Subject, F[_], P[_]](implicit F: Parallel[F, P]) {
+  sealed class PartiallyApplied[Subject, F[_]] {
 
-    def init[E](implicit E: ApplicativeError[F, E]): VivalidiBuilder[Subject, E, HNil, F, P] = {
+    def init[E](implicit F: Par[F], E: ApplicativeError[F, E]): VivalidiBuilder[Subject, E, HNil, F] = {
       val initialMemory: F[HNil] = Applicative[F].pure(HNil)
 
-      new VivalidiBuilder[Subject, E, HNil, F, P](_ => initialMemory)
+      new VivalidiBuilder[Subject, E, HNil, F](_ => initialMemory)
     }
   }
 
