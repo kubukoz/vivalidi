@@ -15,7 +15,7 @@ object Dependencies {
 }
 
 object Versions {
-  val catsEffect    = "1.0.0-RC2"
+  val catsEffect    = "0.10.1"
   val cats          = "1.0.1"
   val catsParTemp   = "0.0.3"
   val kindProjector = "0.9.6"

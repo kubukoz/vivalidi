@@ -13,7 +13,7 @@ class ParallelTest extends WordSpec with Matchers {
   "Validations" should {
     "be parallel" in {
       val sleepLength = 1.second
-      val Δ           = 500.millis
+      val Δ           = 700.millis
 
       import scala.concurrent.ExecutionContext.Implicits.global
 
