@@ -15,12 +15,11 @@ object Dependencies {
 }
 
 object Versions {
-  val catsEffect    = "0.10.1"
-  val cats          = "1.0.1"
-  val catsParTemp   = "0.0.3"
-  val kindProjector = "0.9.6"
+  val catsEffect    = "1.0.0-RC2"
+  val cats          = "1.2.0"
+  val catsParTemp   = "0.2.0"
+  val kindProjector = "0.9.7"
   val scalatest     = "3.0.5"
-  val macroParadise = "3.0.0-M11"
   val shapeless     = "2.3.3"
   val simulacrum    = "0.12.0"
   val scalacheck    = "1.13.5"

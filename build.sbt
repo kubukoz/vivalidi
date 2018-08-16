@@ -5,8 +5,6 @@ import sbtcrossproject.{crossProject, CrossType}
 scalacOptions in ThisBuild ++= Options.flags
 scalacOptions in (Compile, console) --= Options.consoleExclusions
 
-val macroParadise = addCompilerPlugin(("org.scalameta" % "paradise" % Versions.macroParadise).cross(CrossVersion.full))
-
 val kindProjector = addCompilerPlugin(
   "org.spire-math" %% "kind-projector" % Versions.kindProjector
 )
@@ -22,8 +20,7 @@ val commonSettings = Seq(
   organization := "com.kubukoz",
   scalaVersion := "2.12.4",
   description := "Elegant, effect-agnostic validations for Scala DTOs",
-  version := "0.0.7",
-  macroParadise,
+  version := "0.0.8",
   kindProjector,
   libraryDependencies ++= vivalidiDeps
 )
