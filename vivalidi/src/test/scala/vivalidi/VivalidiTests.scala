@@ -3,16 +3,17 @@ import cats.Show
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
+import org.scalatest.concurrent.Eventually
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global //for timer/parallel of IO
 
-class VivalidiTests extends WordSpec with Matchers {
+class VivalidiTests extends WordSpec with Matchers with Eventually {
   "Validations" should {
     "be parallel" in {
-      val sleepLength = 1.second
-      val Δ           = 700.millis
+      val sleepLength: FiniteDuration = 1.second
+      val Δ                           = 200.millis
 
       def delayReturnPure[T: Show]: T => IO[ValidatedNel[String, T]] = { t =>
         val sleep = IO.sleep(sleepLength)
@@ -30,7 +31,9 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = Person(1, "hello", 21)
 
-      validation(person).unsafeRunTimed(sleepLength + Δ) shouldBe Some(person.valid)
+      eventually {
+        validation(person).unsafeRunTimed(sleepLength + Δ) shouldBe Some(person.valid)
+      }
     }
   }
 
