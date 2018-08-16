@@ -4,6 +4,8 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.{Applicative, Traverse}
 
+import scala.language.{higherKinds, implicitConversions}
+
 trait SelectorSyntax {
   def withWhole[Subject, Field](f: Subject => Field): Subject => (Field, Subject) = s => (f(s), s)
   def pass[Subject]: Subject => Subject                                           = identity

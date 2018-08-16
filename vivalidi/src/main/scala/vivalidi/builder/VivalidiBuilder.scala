@@ -3,30 +3,29 @@ package vivalidi.builder
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.kernel.Semigroup
-import cats.temp.par._
-import cats.{Applicative, Monad}
+import cats.{Applicative, Functor, Monad, Parallel}
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList}
 import vivalidi.syntax
 
 import scala.language.higherKinds
 
-private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]](
-  memory: Subject => F[Errors[SuccessRepr]])(implicit F: Par[F], E: Applicative[Errors]) {
-  implicit val monF: Monad[F] = F.parallel.monad
+private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <: HList, F[_]: Monad, P[_]](
+  memory: Subject => F[Errors[SuccessRepr]])(implicit E: Applicative[Errors], P: Parallel[F, P]) {
 
-  type SyncValidator[I, O]  = I => Errors[O]
-  type AsyncValidator[I, O] = I => F[Errors[O]]
+  type SyncValidator[I, O]             = I => Errors[O]
+  type AsyncValidator[I, O]            = I => F[Errors[O]]
+  private type AsyncValidatorPar[I, O] = I => P[Errors[O]]
 
-  def pure[Field](value: Field): VivalidiBuilder[Subject, Errors, Field :: SuccessRepr, F] =
+  def pure[Field](value: Field): VivalidiBuilder[Subject, Errors, Field :: SuccessRepr, F, P] =
     just(Function.const(value))
 
-  def just[Field](toField: Subject => Field): VivalidiBuilder[Subject, Errors, Field :: SuccessRepr, F] =
+  def just[Field](toField: Subject => Field): VivalidiBuilder[Subject, Errors, Field :: SuccessRepr, F, P] =
     sync(toField)(E.pure)
 
   def sync[Field, Output](toField: Subject => Field)(
     checkFirst: SyncValidator[Field, Output],
-    checkMore: SyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F] = {
+    checkMore: SyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F, P] = {
     import syntax.validators._
 
     async(toField)(checkFirst.liftF[F], checkMore.map(_.liftF[F]): _*)
@@ -34,7 +33,7 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
 
   def async[Field, Output, Actual](toField: Subject => Field)(
     checkFirst: AsyncValidator[Field, Output],
-    checkMore: AsyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F] = {
+    checkMore: AsyncValidator[Field, Output]*): VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F, P] = {
 
     //configurable?
     val outputSemigroup = Semigroup.instance[Output]((a, _) => a)
@@ -42,10 +41,10 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
     val checkAll: AsyncValidator[Field, Output] =
       NonEmptyList(checkFirst, checkMore.toList).reduce(validatorSemigroup[Field, Output](outputSemigroup))
 
-    val mapAndCheck = toField.andThen(checkAll)
+    val mapAndCheck: AsyncValidator[Subject, Output] = toField.andThen(checkAll)
 
-    new VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F](
-      applicativeStack.map2(mapAndCheck, memory)(_ :: _)
+    new VivalidiBuilder[Subject, Errors, Output :: SuccessRepr, F, P](
+      parMapV(mapAndCheck, memory)(_ :: _)
     )
   }
 
@@ -56,18 +55,18 @@ private[vivalidi] final class VivalidiBuilder[Subject, Errors[_], SuccessRepr <:
     def run[SuccessReverseRepr <: HList](subject: Subject)(
       implicit gen: Generic.Aux[Success, SuccessReverseRepr],
       rev: Reverse.Aux[SuccessRepr, SuccessReverseRepr]): F[Errors[Success]] = {
-      applicativeStack.map(memory)(f => gen.from(rev(f)))(subject)
+      functorStack[Subject].map(memory)(f => gen.from(rev(f)))(subject)
     }
   }
 
-  private def applicativeStackT[T]: Applicative[λ[A => T => F[Errors[A]]]] =
-    Applicative[T => ?].compose[F].compose[Errors]
+  private def functorStack[T]: Functor[λ[A => T => F[Errors[A]]]] =
+    Functor[T => ?].compose[F].compose[Errors]
 
-  private val applicativeStack = applicativeStackT[Subject]
+  private def validatorSemigroup[I, T: Semigroup]: Semigroup[AsyncValidator[I, T]] = parMapV(_, _)(Semigroup[T].combine)
 
-  private type AsyncParValidator[I, O] = I => F.ParAux[Errors[O]]
-
-  private def validatorSemigroup[I, T: Semigroup]
-    : Semigroup[AsyncValidator[I, T]] = { (a, b) => i => (a(i), b(i)).parMapN((aE, bE) => (aE, bE).mapN(Semigroup[T].combine))
+  //runs validating functions in parallel, combines results with `f`
+  private def parMapV[I, O1, O2, O3](v1: AsyncValidator[I, O1], v2: AsyncValidator[I, O2])(
+    f: (O1, O2) => O3): AsyncValidator[I, O3] = { i =>
+    (v1(i), v2(i)).parMapN((aE, bE) => (aE, bE).mapN(f))
   }
 }
