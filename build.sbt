@@ -9,18 +9,19 @@ val kindProjector = addCompilerPlugin(
   "org.spire-math" %% "kind-projector" % Versions.kindProjector
 )
 
-crossScalaVersions := Seq("2.12.4")
+crossScalaVersions in ThisBuild := Seq("2.12.4")
+resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 
 val vivalidiDeps = Seq(
   shapeless,
   scalatest
-) ++ scalacheck ++ cats
+) ++ scalacheck ++ cats ++ scalaz
 
 val commonSettings = Seq(
   organization := "com.kubukoz",
   scalaVersion := "2.12.4",
   description := "Elegant, effect-agnostic validations for Scala DTOs",
-  version := "0.1.0",
+  version := "0.1.0-SNAPSHOT",
   kindProjector,
   libraryDependencies ++= vivalidiDeps
 )

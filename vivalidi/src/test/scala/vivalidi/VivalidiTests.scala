@@ -30,7 +30,7 @@ class VivalidiTests extends WordSpec with Matchers {
         EitherT(action.as(t.asRight[E]))
       }
 
-      val validation: Person => EitherT[IO, Unit, Person] = Vivalidi[Person, EitherT[IO, Unit, ?]].init
+      val validation = Vivalidi[Person, EitherT[IO, Unit, ?]].init
         .async(_.id)(delayReturnPure, delayReturnPure, delayReturnPure)
         .async(_.name)(delayReturnPure)
         .async(_.age)(delayReturnPure)

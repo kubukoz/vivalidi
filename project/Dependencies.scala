@@ -12,9 +12,14 @@ object Dependencies {
 
   val cats       = Seq(catsCore, catsParTemp, catsEffect % Test)
   val scalacheck = Seq(scalacheckCore)
+
+  val scalaz = Seq(
+    "org.scalaz" %% "scalaz-zio" % Versions.zio % Test
+  )
 }
 
 object Versions {
+  val zio           = "0.1.0-SNAPSHOT"
   val catsEffect    = "1.0.0-RC2"
   val cats          = "1.2.0"
   val catsParTemp   = "0.2.0"
