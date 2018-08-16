@@ -19,15 +19,18 @@ class VivalidiTests extends WordSpec with Matchers {
       val Δ                           = 200.millis
 
       def delayReturnPure[T: Show, E]: T => EitherT[IO, E, T] = { t =>
+        val debug = false
+
         val sleep = IO.sleep(sleepLength)
 
-        val action = IO(println(show"starting $t")) *> sleep <* IO(println(show"finishing $t"))
+        val action =
+          if (debug) IO(println(show"starting $t")) *> sleep <* IO(println(show"finishing $t"))
+          else sleep
 
         EitherT(action.as(t.asRight[E]))
       }
 
-      val validation: Person => EitherT[IO, Unit, Person] = Vivalidi
-        .init[Person, EitherT[IO, Unit, ?], Unit]
+      val validation: Person => EitherT[IO, Unit, Person] = Vivalidi[Person, EitherT[IO, Unit, ?]].init
         .async(_.id)(delayReturnPure, delayReturnPure, delayReturnPure)
         .async(_.name)(delayReturnPure)
         .async(_.age)(delayReturnPure)
@@ -48,8 +51,7 @@ class VivalidiTests extends WordSpec with Matchers {
       def failIO[T](error: String): T => EitherNelT[IO, String, T] =
         _ => error.leftNel[T].liftTo[EitherNelT[IO, String, ?]]
 
-      val validation: UserId => EitherNelT[IO, String, UserId] = Vivalidi
-        .init[UserId, EitherNelT[IO, String, ?], NonEmptyList[String]]
+      val validation: UserId => EitherNelT[IO, String, UserId] = Vivalidi[UserId, EitherNelT[IO, String, ?]].init
         .async(_.value)(failIO("oops"), failIO("foo"), failIO("bar"))
         .to[UserId]
         .run
@@ -64,8 +66,7 @@ class VivalidiTests extends WordSpec with Matchers {
     "compose errors in correct order" in {
       type E[A] = EitherNelT[IO, String, A]
 
-      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi
-        .init[Person, E, NonEmptyList[String]]
+      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
         .sync(_.id)(_ => "wrong id".leftNel[Long])
         .just(_.name)
         .async(_.age)(_ => "wrong age".leftNel[Int].liftTo[E])
