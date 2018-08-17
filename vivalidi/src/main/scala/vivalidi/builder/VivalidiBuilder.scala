@@ -26,9 +26,9 @@ private[vivalidi] final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList
   def sync[Field, Output](toField: Subject => Field)(
     checkFirst: PureValidator[Field, Output],
     checkMore: PureValidator[Field, Output]*): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
+    val liftOne: PureValidator[Field, Output] => AsyncValidator[Field, Output] = v => v(_).liftTo[F]
 
-    async(toField)(checkFirst(_).liftTo[F],
-                   checkMore.map(validator => (input: Field) => validator(input).liftTo[F]): _*)
+    async(toField)(liftOne(checkFirst), checkMore.map(liftOne): _*)
   }
 
   def async[Field, Output, Actual](toField: Subject => Field)(
