@@ -1,22 +1,26 @@
 package vivalidi
+
 import cats.Show
 import cats.data._
-import cats.effect.IO
+import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.laws.util.TestContext
 import cats.implicits._
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.higherKinds //for timer/parallel of IO
+import scala.language.higherKinds
 
 class VivalidiTests extends WordSpec with Matchers {
   type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
 
   "Parallel validation" should {
     "be parallel" in {
+      implicit val tc: TestContext = TestContext()
+
+      implicit val contextShift: ContextShift[IO] = IO.contextShift(tc)
+      implicit val timer: Timer[IO] = tc.timer[IO]
 
       val sleepLength: FiniteDuration = 1.second
-      val Δ                           = 200.millis
 
       def delayReturnPure[T: Show, E]: T => EitherT[IO, E, T] = { t =>
         val debug = false
@@ -39,7 +43,11 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = Person(1, "hello", 21)
 
-      validation(person).value.timeout(sleepLength + Δ).unsafeRunSync() shouldBe person.asRight
+
+      val future = validation(person).value.unsafeToFuture()
+
+      tc.tick(sleepLength)
+      future.value.get.get shouldBe person.asRight
     }
   }
 

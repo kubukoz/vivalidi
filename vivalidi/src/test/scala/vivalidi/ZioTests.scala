@@ -1,4 +1,6 @@
 package vivalidi
+
+import cats.implicits._
 import cats.data.NonEmptyList
 import cats.kernel.Semigroup
 import cats.{~>, Applicative, Monad, MonadError, Parallel}
@@ -24,14 +26,13 @@ object ZIOInstances {
     override def ap[A, B](ff: ParZIO[E, A => B])(fa: ParZIO[E, A]): ParZIO[E, B] =
       new ParZIO(
         ff.value.attempt
-          .par(fa.value.attempt)
-          .map {
+          .parWith(fa.value.attempt){
             case (Left(e), Left(ee))   => Left(Semigroup[E].combine(e, ee))
             case (Left(e), _)          => Left(e)
             case (_, Left(e))          => Left(e)
             case (Right(fa), Right(a)) => Right(fa(a))
           }
-          .flatMap(ZIO.fromEither))
+          .flatMap(_.liftTo[ZIO[E, ?]]))
   }
 
   implicit def parallel[E: Semigroup]: Parallel[ZIO[E, ?], ParZIO[E, ?]] = new Parallel[ZIO[E, ?], ParZIO[E, ?]] {

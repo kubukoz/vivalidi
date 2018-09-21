@@ -1,16 +1,17 @@
 import sbt._
 
 object Dependencies {
-  val kindProjector  = "org.spire-math"       %% "kind-projector" % Versions.kindProjector
-  val catsCore       = "org.typelevel"        %% "cats-core"      % Versions.cats
-  val catsParTemp    = "io.chrisdavenport"    %% "cats-par"       % Versions.catsParTemp
-  val catsEffect     = "org.typelevel"        %% "cats-effect"    % Versions.catsEffect
-  val shapeless      = "com.chuusai"          %% "shapeless"      % Versions.shapeless
-  val scalatest      = "org.scalatest"        %% "scalatest"      % Versions.scalatest % Test
-  val simulacrum     = "com.github.mpilquist" %% "simulacrum"     % Versions.simulacrum
-  val scalacheckCore = "org.scalacheck"       %% "scalacheck"     % Versions.scalacheck % Test
+  val kindProjector  = "org.spire-math"       %% "kind-projector"   % Versions.kindProjector
+  val catsCore       = "org.typelevel"        %% "cats-core"        % Versions.cats
+  val catsParTemp    = "io.chrisdavenport"    %% "cats-par"         % Versions.catsParTemp
+  val catsEffect     = "org.typelevel"        %% "cats-effect"      % Versions.catsEffect
+  val catsEffectLaws = "org.typelevel"        %% "cats-effect-laws" % Versions.catsEffect
+  val shapeless      = "com.chuusai"          %% "shapeless"        % Versions.shapeless
+  val scalatest      = "org.scalatest"        %% "scalatest"        % Versions.scalatest % Test
+  val simulacrum     = "com.github.mpilquist" %% "simulacrum"       % Versions.simulacrum
+  val scalacheckCore = "org.scalacheck"       %% "scalacheck"       % Versions.scalacheck % Test
 
-  val cats       = Seq(catsCore, catsParTemp, catsEffect % Test)
+  val cats       = Seq(catsCore, catsParTemp, catsEffect % Test, catsEffectLaws % Test)
   val scalacheck = Seq(scalacheckCore)
 
   val scalaz = Seq(
@@ -19,9 +20,9 @@ object Dependencies {
 }
 
 object Versions {
-  val zio           = "0.1.0-SNAPSHOT"
-  val catsEffect    = "1.0.0-RC2"
-  val cats          = "1.2.0"
+  val zio           = "0.2.7"
+  val catsEffect    = "1.0.0"
+  val cats          = "1.4.0"
   val catsParTemp   = "0.2.0"
   val kindProjector = "0.9.7"
   val scalatest     = "3.0.5"
