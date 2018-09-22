@@ -48,7 +48,10 @@ val vivalidi = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(commonSettings, libraryDependencies ++= vivalidiDeps)
 
-val vivalidiJVM = vivalidi.jvm
+val vivalidiJVM = vivalidi.jvm.settings(
+  mimaPreviousArtifacts := Set("com.kubukoz" % "vivalidi_2.12" % "0.1.0")
+)
+
 val vivalidiJS  = vivalidi.js
 
 val root = (project in file("."))

@@ -1,7 +1,8 @@
 package vivalidi
 
+import cats.data.Kleisli
 import cats.temp.par.Par
-import cats.{Applicative, ApplicativeError}
+import cats.ApplicativeError
 import shapeless.HNil
 import vivalidi.builder.VivalidiBuilder
 
@@ -13,12 +14,10 @@ object Vivalidi {
     new PartiallyApplied[Subject, F]
   }
 
-  sealed class PartiallyApplied[Subject, F[_]] {
+  final class PartiallyApplied[Subject, F[_]] private[Vivalidi] {
 
     def init[E](implicit F: Par[F], E: ApplicativeError[F, E]): VivalidiBuilder[Subject, E, HNil, F] = {
-      val initialMemory: F[HNil] = Applicative[F].pure(HNil)
-
-      new VivalidiBuilder[Subject, E, HNil, F](_ => initialMemory)
+      new VivalidiBuilder[Subject, E, HNil, F](Kleisli.pure(HNil))
     }
   }
 

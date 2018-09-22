@@ -1,20 +1,24 @@
 package vivalidi.builder
 
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList}
 import cats.implicits._
 import cats.kernel.Semigroup
 import cats.temp.par.Par
-import cats.{ApplicativeError, Functor}
+import cats.temp.par._
+import cats.ApplicativeError
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList}
 
 import scala.language.higherKinds
 
-private[vivalidi] final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]](
-  memory: Subject => F[SuccessRepr])(implicit F: ApplicativeError[F, Err], P: Par[F]) {
+final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vivalidi] (memory: Kleisli[F, Subject, SuccessRepr])(
+  implicit F: ApplicativeError[F, Err],
+  P: Par[F]) {
 
-  type PureValidator[I, O]             = I => Either[Err, O]
-  type AsyncValidator[I, O]            = I => F[O]
+  type PureValidator[I, O]   = I => Either[Err, O]
+  type AsyncValidator[I, O]  = I => F[O]
+  type AsyncValidatorK[I, O] = Kleisli[F, I, O]
+
   private type AsyncValidatorPar[I, O] = I => P.ParAux[O]
 
   def pure[Field](value: Field): VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F] =
@@ -31,22 +35,28 @@ private[vivalidi] final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList
     async(toField)(liftOne(checkFirst), checkMore.map(liftOne): _*)
   }
 
-  def async[Field, Output, Actual](toField: Subject => Field)(
+  def async[Field, Output](toField: Subject => Field)(
     checkFirst: AsyncValidator[Field, Output],
     checkMore: AsyncValidator[Field, Output]*): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
 
+    asyncK(toField)(Kleisli(checkFirst), checkMore.map(Kleisli(_)): _*)
+  }
+
+  def asyncK[Field, Output](toField: Subject => Field)(
+    checkFirst: AsyncValidatorK[Field, Output],
+    checkMore: AsyncValidatorK[Field, Output]*
+  ): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
     //semigroup for success values in case of multiple validations on a single field
-    //configurable?
-    val outputSemigroup = Semigroup.instance[Output]((a, _) => a)
+    implicit val outputSemigroup: Semigroup[Output] = Semigroup.instance[Output]((a, _) => a)
 
-    val checkAll: AsyncValidator[Field, Output] =
-      NonEmptyList(checkFirst, checkMore.toList).reduce(validatorSemigroup[Field, Output](outputSemigroup))
+    val checkAll: AsyncValidatorK[Field, Output] =
+      NonEmptyList(checkFirst, checkMore.toList).reduce(validatorSemigroup[AsyncValidatorK[Field, ?], Output])
 
-    val mapAndCheck: AsyncValidator[Subject, Output] = toField.andThen(checkAll)
+    val mapAndCheck: AsyncValidatorK[Subject, Output] = checkAll.local(toField)
 
     new VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F](
       //memory first to maintain order of errors in case of failure
-      parMapV(memory, mapAndCheck)((memory, field) => field :: memory)
+      parMap2(memory, mapAndCheck)((memory, field) => field :: memory)
     )
   }
 
@@ -56,18 +66,15 @@ private[vivalidi] final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList
 
     def run[SuccessReverseRepr <: HList](implicit gen: Generic.Aux[Success, SuccessReverseRepr],
                                          rev: Reverse.Aux[SuccessRepr, SuccessReverseRepr]): Subject => F[Success] = {
-      functorStack[Subject].map(memory)(f => gen.from(rev(f)))
-    }
+      memory.map(f => gen.from(rev(f)))
+    }.run
   }
 
-  private def functorStack[T]: Functor[λ[A => T => F[A]]] =
-    Functor[T => ?].compose[F]
-
-  private def validatorSemigroup[I, T: Semigroup]: Semigroup[AsyncValidator[I, T]] = parMapV(_, _)(Semigroup[T].combine)
+  private def validatorSemigroup[G[_]: Par, T: Semigroup]: Semigroup[G[T]] = parMap2(_, _)(_ |+| _)
 
   //runs validating functions in parallel, combines results with `f`
-  private def parMapV[I, O1, O2, O3](v1: AsyncValidator[I, O1], v2: AsyncValidator[I, O2])(
-    f: (O1, O2) => O3): AsyncValidator[I, O3] = { i =>
-    (v1(i), v2(i)).parMapN((aE, bE) => f(aE, bE))(P.parallel)
+  private def parMap2[G[_]: Par, O1, O2, O3](v1: G[O1], v2: G[O2])(f: (O1, O2) => O3): G[O3] = {
+
+    (v1, v2).parMapN(f)(Par[G].parallel)
   }
 }

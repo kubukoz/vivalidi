@@ -86,6 +86,23 @@ class VivalidiTests extends WordSpec with Matchers {
       validation(person).value.unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft
     }
   }
+
+  "Kleisli validations on multiple fields" should {
+    "compose errors in correct order" in {
+      type E[A] = EitherNelT[IO, String, A]
+
+      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
+        .sync(_.id)(_ => "wrong id".leftNel[Long])
+        .just(_.name)
+        .asyncK(_.age)(Kleisli.liftF("wrong age".leftNel[Int].liftTo[E]))
+        .to[Person]
+        .run
+
+      val person = Person(1, "hello", 21)
+
+      validation(person).value.unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft
+    }
+  }
 }
 
 case class Person(id: Long, name: String, age: Int)
