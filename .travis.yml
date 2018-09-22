@@ -11,8 +11,19 @@ cache:
 before_cache:
 - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
 - find $HOME/.sbt -name "*.lock" -delete
-script:
-- sbt test:compile test
+before_install:
+- git fetch --tags
+stages:
+- name: test
+- name: release
+  if: (branch = master AND type = push) OR (tag IS present)
+jobs:
+  include:
+  # stage="test" if no stage is specified
+  - script: test:compile test
+  # run ci-release only if previous stages passed
+  - stage: release
+    script: sbt ci-release
 branches:
   only:
   - master
