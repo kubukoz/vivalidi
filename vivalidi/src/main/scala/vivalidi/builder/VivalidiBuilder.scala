@@ -11,9 +11,10 @@ import shapeless.{::, Generic, HList}
 
 import scala.language.higherKinds
 
-final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vivalidi] (memory: Kleisli[F, Subject, SuccessRepr])(
-  implicit F: ApplicativeError[F, Err],
-  P: Par[F]) {
+final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vivalidi] (
+  memory: Kleisli[F, Subject, SuccessRepr])(implicit F: ApplicativeError[F, Err], P: Par[F]) {
+
+  type Builder[Field] = VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F]
 
   type PureValidator[I, O]   = I => Either[Err, O]
   type AsyncValidator[I, O]  = I => F[O]
@@ -21,23 +22,22 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
 
   private type AsyncValidatorPar[I, O] = I => P.ParAux[O]
 
-  def pure[Field](value: Field): VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F] =
+
+  def pure[Field](value: Field): Builder[Field] =
     just(Function.const(value))
 
-  def just[Field](toField: Subject => Field): VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F] =
+  def just[Field](toField: Subject => Field): Builder[Field] =
     sync(toField)(_.asRight)
 
-  def sync[Field, Output](toField: Subject => Field)(
-    checkFirst: PureValidator[Field, Output],
-    checkMore: PureValidator[Field, Output]*): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
+  def sync[Field, Output](toField: Subject => Field)(checkFirst: PureValidator[Field, Output],
+                                                     checkMore: PureValidator[Field, Output]*): Builder[Output] = {
     val liftOne: PureValidator[Field, Output] => AsyncValidator[Field, Output] = v => v(_).liftTo[F]
 
     async(toField)(liftOne(checkFirst), checkMore.map(liftOne): _*)
   }
 
-  def async[Field, Output](toField: Subject => Field)(
-    checkFirst: AsyncValidator[Field, Output],
-    checkMore: AsyncValidator[Field, Output]*): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
+  def async[Field, Output](toField: Subject => Field)(checkFirst: AsyncValidator[Field, Output],
+                                                      checkMore: AsyncValidator[Field, Output]*): Builder[Output] = {
 
     asyncK(toField)(Kleisli(checkFirst), checkMore.map(Kleisli(_)): _*)
   }
@@ -45,7 +45,7 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
   def asyncK[Field, Output](toField: Subject => Field)(
     checkFirst: AsyncValidatorK[Field, Output],
     checkMore: AsyncValidatorK[Field, Output]*
-  ): VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F] = {
+  ): Builder[Output] = {
     //semigroup for success values in case of multiple validations on a single field
     implicit val outputSemigroup: Semigroup[Output] = Semigroup.instance[Output]((a, _) => a)
 
@@ -54,7 +54,7 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
 
     val mapAndCheck: AsyncValidatorK[Subject, Output] = checkAll.local(toField)
 
-    new VivalidiBuilder[Subject, Err, Output :: SuccessRepr, F](
+    new Builder[Output](
       //memory first to maintain order of errors in case of failure
       parMap2(memory, mapAndCheck)((memory, field) => field :: memory)
     )
