@@ -13,12 +13,13 @@ import scala.language.higherKinds
 class VivalidiTests extends WordSpec with Matchers {
   type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
 
+  implicit val tc: TestContext = TestContext()
+
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(tc)
+  implicit val timer: Timer[IO] = tc.timer[IO]
+
   "Parallel validation" should {
     "be parallel" in {
-      implicit val tc: TestContext = TestContext()
-
-      implicit val contextShift: ContextShift[IO] = IO.contextShift(tc)
-      implicit val timer: Timer[IO] = tc.timer[IO]
 
       val sleepLength: FiniteDuration = 1.second
 

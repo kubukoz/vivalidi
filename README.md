@@ -22,23 +22,23 @@ Replace x.x.x with the version you want (the latest non-snapshot release version
 The library is cross-compiled to Scala 2.12 and Scala.js - for the latter, replace `%%` with `%%%`.
 
 ## Usage
-Coming soon - until then, please enjoy this raw, uncut sample from my app:
+Coming soon - until then, please enjoy this example from tests:
 
 ```scala
-type CreateV[T] = ValidatedNel[CreationError, T]
-
 import vivalidi.Vivalidi, vivalidi.syntax.all._
+type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
+type E[A] = EitherNelT[IO, String, A]
 
-val result: F[CreateV[Transaction]] = Vivalidi.init[TransactionToCreate, CreateV, F]
-  .pure(TransactionId(0))
-  .sync(_.name)(validateLength(config.name.length))
-  .sync(_.amount)(validateMoneyLimit(config.money.amount))
-  .async(_.accounts)(checkSameAccount.liftF[F], validateAccounts(_).run(auth))
-  .just(_.transferTime)
-  .async(_.category)(sequencing(checkCategory(_)(auth)))
-  .pure(auth)
-  .to[Transaction]
-  .run(toCreate)
+val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
+  .sync(_.id)(_ => "wrong id".leftNel[Long])
+  .just(_.name)
+  .async(_.age)(_ => "wrong age".leftNel[Int].liftTo[E])
+  .to[Person]
+  .run
+
+val person = Person(1, "hello", 21)
+
+validation(person).value.unsafeRunSync()
 ```
 
 tl;dr `CreateV[_] : Applicative` - so far the validators (e.g. `validateLength`, a custom function taking String and returning
