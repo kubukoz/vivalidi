@@ -20,13 +20,13 @@ object Dependencies {
 }
 
 object Versions {
-  val zio           = "0.2.7"
+  val zio           = "0.2.9"
   val catsEffect    = "1.0.0"
   val cats          = "1.4.0"
   val catsParTemp   = "0.2.0"
-  val kindProjector = "0.9.7"
+  val kindProjector = "0.9.8"
   val scalatest     = "3.0.5"
   val shapeless     = "2.3.3"
-  val simulacrum    = "0.12.0"
+  val simulacrum    = "0.13.0"
   val scalacheck    = "1.13.5"
 }

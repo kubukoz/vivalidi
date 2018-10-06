@@ -2,21 +2,21 @@ package vivalidi
 
 import cats.Show
 import cats.data._
-import cats.effect.{ContextShift, IO, Timer}
 import cats.effect.laws.util.TestContext
+import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.higherKinds
 
-class VivalidiTests extends WordSpec with Matchers {
+class VivalidiTests extends AsyncWordSpec with Matchers {
   type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
 
-  implicit val tc: TestContext = TestContext()
+  val tc: TestContext = TestContext()
 
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(tc)
-  implicit val timer: Timer[IO] = tc.timer[IO]
+  implicit val contextShift: ContextShift[IO] = tc.contextShift(IO.ioEffect)
+  implicit val timer: Timer[IO]               = tc.timer[IO]
 
   "Parallel validation" should {
     "be parallel" in {
@@ -44,11 +44,11 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = Person(1, "hello", 21)
 
-
-      val future = validation(person).value.unsafeToFuture()
+      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
 
       tc.tick(sleepLength)
-      future.value.get.get shouldBe person.asRight
+
+      future.map(_ shouldBe person.asRight)
     }
   }
 
@@ -67,12 +67,18 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = UserId(1)
 
-      validation(person).value.unsafeRunSync shouldBe NonEmptyList.of("oops", "foo", "bar").asLeft
+      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+
+      tc.tick()
+
+      future.map(_ shouldBe NonEmptyList.of("oops", "foo", "bar").asLeft)
+
     }
   }
 
   "Validations on multiple fields" should {
     "compose errors in correct order" in {
+
       type E[A] = EitherNelT[IO, String, A]
 
       val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
@@ -84,7 +90,11 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = Person(1, "hello", 21)
 
-      validation(person).value.unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft
+      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+
+      tc.tick()
+
+      future.map(_ shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft)
     }
   }
 
@@ -101,7 +111,11 @@ class VivalidiTests extends WordSpec with Matchers {
 
       val person = Person(1, "hello", 21)
 
-      validation(person).value.unsafeRunSync() shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft
+      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+
+      tc.tick()
+
+      future.map(_ shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft)
     }
   }
 }

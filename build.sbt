@@ -23,7 +23,7 @@ val kindProjector = addCompilerPlugin(
   "org.spire-math" %% "kind-projector" % Versions.kindProjector
 )
 
-crossScalaVersions in ThisBuild := Seq("2.12.4")
+crossScalaVersions in ThisBuild := Seq("2.12.7")
 resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 
 val vivalidiDeps = Seq(
@@ -33,7 +33,7 @@ val vivalidiDeps = Seq(
 
 val commonSettings = Seq(
   organization := "com.kubukoz",
-  scalaVersion := "2.12.6",
+  scalaVersion := "2.12.7",
   description := "Elegant, effect-agnostic validations for Scala DTOs",
   kindProjector,
   libraryDependencies ++= vivalidiDeps
@@ -49,7 +49,8 @@ val vivalidi = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings, libraryDependencies ++= vivalidiDeps)
 
 val vivalidiJVM = vivalidi.jvm.settings(
-  mimaPreviousArtifacts := Set("com.kubukoz" % "vivalidi_2.12" % "0.1.0")
+  resolvers += Resolver.sonatypeRepo("releases"),
+  mimaPreviousArtifacts := Set("com.kubukoz" %%% "vivalidi" % "0.3.0")
 )
 
 val vivalidiJS  = vivalidi.js

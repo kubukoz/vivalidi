@@ -3,9 +3,9 @@ package vivalidi
 import cats.implicits._
 import cats.data.NonEmptyList
 import cats.kernel.Semigroup
-import cats.{~>, Applicative, Monad, MonadError, Parallel}
+import cats.{Applicative, Monad, MonadError, Parallel, ~>}
 import org.scalatest.{Matchers, WordSpec}
-import scalaz.zio.{IO => ZIO}
+import scalaz.zio.{RTS, IO => ZIO}
 
 class ParZIO[+E, +T](val value: ZIO[E, T]) extends AnyVal
 
@@ -46,8 +46,6 @@ object ZIOInstances {
 class ZioTests extends WordSpec with Matchers {
 
   "ZIO" should {
-    import scalaz.zio.App
-
     "just work" in {
       import ZIOInstances._
       import cats.implicits._
@@ -65,15 +63,14 @@ class ZioTests extends WordSpec with Matchers {
 
       val fun = validation(person)
 
-      val prog = new App {
-        override def run(args: List[String]): ZIO[Nothing, ExitStatus] = fun.attempt.flatMap { result =>
-          ZIO
-            .sync(result shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft)
-            .map[ExitStatus](_ => ExitStatus.DoNotExit)
-        }
+      val rts = new RTS {}
+
+      val prog = fun.attempt.flatMap { result =>
+        ZIO
+          .sync(result shouldBe NonEmptyList.of("wrong id", "wrong age").asLeft)
       }
 
-      prog.main(Array.empty)
+      rts.unsafeRun(prog)
     }
   }
 }
