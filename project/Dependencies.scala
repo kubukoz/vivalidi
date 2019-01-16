@@ -28,5 +28,5 @@ object Versions {
   val scalatest     = "3.0.5"
   val shapeless     = "2.3.3"
   val simulacrum    = "0.13.0"
-  val scalacheck    = "1.13.5"
+  val scalacheck    = "1.14.0"
 }
