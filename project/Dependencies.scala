@@ -24,7 +24,7 @@ object Versions {
   val catsEffect    = "1.0.0"
   val cats          = "1.5.0"
   val catsParTemp   = "0.2.0"
-  val kindProjector = "0.9.8"
+  val kindProjector = "0.9.9"
   val scalatest     = "3.0.5"
   val shapeless     = "2.3.3"
   val simulacrum    = "0.13.0"
