@@ -12,7 +12,8 @@ import shapeless.{::, Generic, HList}
 import scala.language.higherKinds
 
 final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vivalidi] (
-  memory: Kleisli[F, Subject, SuccessRepr])(implicit F: ApplicativeError[F, Err], P: Par[F]) {
+  memory: Kleisli[F, Subject, SuccessRepr]
+)(implicit F: ApplicativeError[F, Err], P: Par[F]) {
 
   type Builder[Field] = VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F]
 
@@ -20,24 +21,26 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
   type AsyncValidator[I, O]  = I => F[O]
   type AsyncValidatorK[I, O] = Kleisli[F, I, O]
 
-  private type AsyncValidatorPar[I, O] = I => P.ParAux[O]
-
-
   def pure[Field](value: Field): Builder[Field] =
     just(Function.const(value))
+
+  def liftF[Field](get: F[Field]): Builder[Field] =
+    async(_ => ())(_ => get)
 
   def just[Field](toField: Subject => Field): Builder[Field] =
     sync(toField)(_.asRight)
 
-  def sync[Field, Output](toField: Subject => Field)(checkFirst: PureValidator[Field, Output],
-                                                     checkMore: PureValidator[Field, Output]*): Builder[Output] = {
+  def sync[Field, Output](
+    toField: Subject => Field
+  )(checkFirst: PureValidator[Field, Output], checkMore: PureValidator[Field, Output]*): Builder[Output] = {
     val liftOne: PureValidator[Field, Output] => AsyncValidator[Field, Output] = v => v(_).liftTo[F]
 
     async(toField)(liftOne(checkFirst), checkMore.map(liftOne): _*)
   }
 
-  def async[Field, Output](toField: Subject => Field)(checkFirst: AsyncValidator[Field, Output],
-                                                      checkMore: AsyncValidator[Field, Output]*): Builder[Output] = {
+  def async[Field, Output](
+    toField: Subject => Field
+  )(checkFirst: AsyncValidator[Field, Output], checkMore: AsyncValidator[Field, Output]*): Builder[Output] = {
 
     asyncK(toField)(Kleisli(checkFirst), checkMore.map(Kleisli(_)): _*)
   }
@@ -64,8 +67,10 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
 
   class To[Success] private[vivalidi] {
 
-    def run[SuccessReverseRepr <: HList](implicit gen: Generic.Aux[Success, SuccessReverseRepr],
-                                         rev: Reverse.Aux[SuccessRepr, SuccessReverseRepr]): Subject => F[Success] = {
+    def run[SuccessReverseRepr <: HList](
+      implicit gen: Generic.Aux[Success, SuccessReverseRepr],
+      rev: Reverse.Aux[SuccessRepr, SuccessReverseRepr]
+    ): Subject => F[Success] = {
       memory.map(f => gen.from(rev(f)))
     }.run
   }
