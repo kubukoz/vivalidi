@@ -1,5 +1,5 @@
 addSbtPlugin("io.get-coursier"  % "sbt-coursier"          % "1.1.0-M7")
-addSbtPlugin("com.lucidchart"   % "sbt-scalafmt-coursier" % "1.15")
+addSbtPlugin("com.lucidchart"   % "sbt-scalafmt-coursier" % "1.16")
 addSbtPlugin("com.timushev.sbt" % "sbt-updates"           % "0.4.0")
 addSbtPlugin("ch.epfl.scala"    % "sbt-bloop"             % "1.0.0-M9")
 
