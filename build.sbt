@@ -20,10 +20,10 @@ scalacOptions in ThisBuild ++= Options.flags
 scalacOptions in (Compile, console) --= Options.consoleExclusions
 
 val kindProjector = addCompilerPlugin(
-  "org.spire-math" %% "kind-projector" % Versions.kindProjector
+  "org.typelevel" %% "kind-projector" % Versions.kindProjector
 )
 
-crossScalaVersions in ThisBuild := Seq("2.12.7")
+crossScalaVersions in ThisBuild := Seq("2.12.8")
 resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 
 val vivalidiDeps = Seq(
@@ -33,7 +33,7 @@ val vivalidiDeps = Seq(
 
 val commonSettings = Seq(
   organization := "com.kubukoz",
-  scalaVersion := "2.12.7",
+  scalaVersion := "2.12.8",
   description := "Elegant, effect-agnostic validations for Scala DTOs",
   kindProjector,
   libraryDependencies ++= vivalidiDeps
