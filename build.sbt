@@ -48,14 +48,15 @@ def makeDep(project: Project) = project % "compile->compile;test->test"
 
 val vivalidi = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
-  .settings(commonSettings, libraryDependencies ++= vivalidiDeps)
+  .settings(commonSettings, libraryDependencies ++= vivalidiDeps, mimaPreviousArtifacts := Set())
 
 val vivalidiJVM = vivalidi.jvm.settings(
-  resolvers += Resolver.sonatypeRepo("releases"),
   mimaPreviousArtifacts := Set()
 )
 
-val vivalidiJS = vivalidi.js
+val vivalidiJS = vivalidi.js.settings(
+  mimaPreviousArtifacts := Set()
+)
 
 val root = (project in file("."))
   .settings(commonSettings)
