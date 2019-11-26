@@ -3,17 +3,16 @@ package vivalidi.builder
 import cats.data.{Kleisli, NonEmptyList}
 import cats.implicits._
 import cats.kernel.Semigroup
-import cats.temp.par.Par
-import cats.temp.par._
 import cats.ApplicativeError
 import shapeless.ops.hlist.Reverse
 import shapeless.{::, Generic, HList}
 
 import scala.language.higherKinds
+import cats.Parallel
 
 final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vivalidi] (
   memory: Kleisli[F, Subject, SuccessRepr]
-)(implicit F: ApplicativeError[F, Err], P: Par[F]) {
+)(implicit F: ApplicativeError[F, Err], P: Parallel[F]) {
 
   type Builder[Field] = VivalidiBuilder[Subject, Err, Field :: SuccessRepr, F]
 
@@ -59,7 +58,7 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
 
     new Builder[Output](
       //memory first to maintain order of errors in case of failure
-      parMap2(memory, mapAndCheck)((memory, field) => field :: memory)
+      (memory, mapAndCheck).parMapN((memory, field) => field :: memory)
     )
   }
 
@@ -75,11 +74,6 @@ final class VivalidiBuilder[Subject, Err, SuccessRepr <: HList, F[_]] private[vi
     }.run
   }
 
-  private def validatorSemigroup[G[_]: Par, T: Semigroup]: Semigroup[G[T]] = parMap2(_, _)(_ |+| _)
+  private def validatorSemigroup[G[_]: Parallel, T: Semigroup]: Semigroup[G[T]] = (_, _).parMapN(_ |+| _)
 
-  //runs validating functions in parallel, combines results with `f`
-  private def parMap2[G[_]: Par, O1, O2, O3](v1: G[O1], v2: G[O2])(f: (O1, O2) => O3): G[O3] = {
-
-    (v1, v2).parMapN(f)(Par[G].parallel)
-  }
 }
