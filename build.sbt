@@ -31,7 +31,7 @@ resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 val vivalidiDeps = Seq(
   shapeless,
   scalatest
-) ++ scalacheck ++ cats ++ scalaz
+) ++ scalacheck ++ cats
 
 val commonSettings = Seq(
   organization := "com.kubukoz",

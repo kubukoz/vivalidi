@@ -12,14 +12,9 @@ object Dependencies {
 
   val cats       = Seq(catsCore, catsEffect % Test, catsEffectLaws % Test)
   val scalacheck = Seq(scalacheckCore)
-
-  val scalaz = Seq(
-    "dev.zio" %% "zio-interop-cats" % Versions.zioCats % Test
-  )
 }
 
 object Versions {
-  val zioCats       = "2.0.0.0-RC9"
   val catsEffect    = "2.0.0"
   val cats          = "2.0.0"
   val kindProjector = "0.10.3"
