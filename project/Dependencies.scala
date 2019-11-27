@@ -14,12 +14,12 @@ object Dependencies {
   val scalacheck = Seq(scalacheckCore)
 
   val scalaz = Seq(
-    "org.scalaz" %% "scalaz-zio" % Versions.zio % Test
+    "dev.zio" %% "zio-interop-cats" % Versions.zioCats % Test
   )
 }
 
 object Versions {
-  val zio           = "0.2.11"
+  val zioCats       = "2.0.0.0-RC9"
   val catsEffect    = "2.0.0"
   val cats          = "2.0.0"
   val kindProjector = "0.10.3"
