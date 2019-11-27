@@ -1,6 +1,5 @@
 package vivalidi
 
-import cats.Show
 import cats.data._
 import cats.effect.laws.util.TestContext
 import cats.effect.{ContextShift, IO, Timer}
@@ -9,42 +8,52 @@ import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.higherKinds
+import cats.ApplicativeError
+import cats.Parallel
+import cats.effect.Sync
 
 class VivalidiTests extends AsyncWordSpec with Matchers {
   type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
+
+  type FailNelString[F[_]] = ApplicativeError[F, NonEmptyList[String]]
 
   val tc: TestContext = TestContext()
 
   implicit val contextShift: ContextShift[IO] = tc.contextShift(IO.ioEffect)
   implicit val timer: Timer[IO]               = tc.timer[IO]
 
+  implicit def eitherTTimer[E]: Timer[EitherT[IO, E, ?]] = timer.mapK(EitherT.liftK)
+
   "Parallel validation" should {
     "be parallel" in {
 
       val sleepLength: FiniteDuration = 1.second
 
-      def delayReturnPure[T: Show, E]: T => EitherT[IO, E, T] = { t =>
-        val debug = false
+      def validation[F[_]: Parallel: FailNelString: Timer: Sync] = {
+        def delayReturnPure[T]: T => F[T] = { t =>
+          val debug = false
 
-        val sleep = IO.sleep(sleepLength)
+          val sleep = Timer[F].sleep(sleepLength)
 
-        val action =
-          if (debug) IO(println(show"starting $t")) *> sleep <* IO(println(show"finishing $t"))
-          else sleep
+          val action =
+            if (debug) Sync[F].delay(println(s"starting $t")) >> sleep >> Sync[F].delay(println(s"finishing $t"))
+            else sleep
 
-        EitherT(action.as(t.asRight[E]))
+          action >> t.pure(Sync[F])
+        }
+
+        Vivalidi[Person, F]
+          .init(Parallel[F], implicitly[FailNelString[F]])
+          .async(_.id)(delayReturnPure, delayReturnPure, delayReturnPure)
+          .async(_.name)(delayReturnPure)
+          .async(_.age)(delayReturnPure)
+          .to[Person]
+          .run
       }
-
-      val validation = Vivalidi[Person, EitherT[IO, Unit, ?]].init
-        .async(_.id)(delayReturnPure, delayReturnPure, delayReturnPure)
-        .async(_.name)(delayReturnPure)
-        .async(_.age)(delayReturnPure)
-        .to[Person]
-        .run
 
       val person = Person(1, "hello", 21)
 
-      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+      val future = validation[EitherNelT[IO, String, ?]].apply(person).value.timeout(2.seconds).unsafeToFuture()
 
       tc.tick(sleepLength)
 
@@ -57,17 +66,16 @@ class VivalidiTests extends AsyncWordSpec with Matchers {
 
       case class UserId(value: Long)
 
-      def failIO[T](error: String): T => EitherNelT[IO, String, T] =
-        _ => error.leftNel[T].liftTo[EitherNelT[IO, String, ?]]
+      def validation[F[_]: Parallel: FailNelString]: UserId => F[UserId] = {
+        def failIO[T](error: String): T => F[T] =
+          _ => error.leftNel[T].liftTo[F]
 
-      val validation: UserId => EitherNelT[IO, String, UserId] = Vivalidi[UserId, EitherNelT[IO, String, ?]].init
-        .async(_.value)(failIO("oops"), failIO("foo"), failIO("bar"))
-        .to[UserId]
-        .run
+        Vivalidi[UserId, F].init.async(_.value)(failIO("oops"), failIO("foo"), failIO("bar")).to[UserId].run
+      }
 
       val person = UserId(1)
 
-      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+      val future = validation[EitherNelT[IO, String, ?]].apply(person).value.timeout(2.seconds).unsafeToFuture()
 
       tc.tick()
 
@@ -79,18 +87,17 @@ class VivalidiTests extends AsyncWordSpec with Matchers {
   "Validations on multiple fields" should {
     "compose errors in correct order" in {
 
-      type E[A] = EitherNelT[IO, String, A]
-
-      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
-        .sync(_.id)(_ => "wrong id".leftNel[Long])
-        .just(_.name)
-        .async(_.age)(_ => "wrong age".leftNel[Int].liftTo[E])
-        .to[Person]
-        .run
+      def validation[E[_]: Parallel: FailNelString]: Person => E[Person] =
+        Vivalidi[Person, E].init
+          .sync(_.id)(_ => "wrong id".leftNel[Long])
+          .just(_.name)
+          .async(_.age)(_ => "wrong age".leftNel[Int].liftTo[E])
+          .to[Person]
+          .run
 
       val person = Person(1, "hello", 21)
 
-      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+      val future = validation[EitherNelT[IO, String, ?]].apply(person).value.timeout(2.seconds).unsafeToFuture()
 
       tc.tick()
 
@@ -100,18 +107,17 @@ class VivalidiTests extends AsyncWordSpec with Matchers {
 
   "Kleisli validations on multiple fields" should {
     "compose errors in correct order" in {
-      type E[A] = EitherNelT[IO, String, A]
-
-      val validation: Person => EitherNelT[IO, String, Person] = Vivalidi[Person, E].init
-        .sync(_.id)(_ => "wrong id".leftNel[Long])
-        .just(_.name)
-        .asyncK(_.age)(Kleisli.liftF("wrong age".leftNel[Int].liftTo[E]))
-        .to[Person]
-        .run
+      def validation[E[_]: Parallel: FailNelString]: Person => E[Person] =
+        Vivalidi[Person, E].init
+          .sync(_.id)(_ => "wrong id".leftNel[Long])
+          .just(_.name)
+          .asyncK(_.age)(Kleisli.liftF("wrong age".leftNel[Int].liftTo[E]))
+          .to[Person]
+          .run
 
       val person = Person(1, "hello", 21)
 
-      val future = validation(person).value.timeout(2.seconds).unsafeToFuture()
+      val future = validation[EitherNelT[IO, String, ?]].apply(person).value.timeout(2.seconds).unsafeToFuture()
 
       tc.tick()
 
