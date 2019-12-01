@@ -4,13 +4,14 @@ import cats.data._
 import cats.effect.laws.util.TestContext
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.higherKinds
 import cats.ApplicativeError
 import cats.Parallel
 import cats.effect.Sync
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpec
 
 class VivalidiTests extends AsyncWordSpec with Matchers {
   type EitherNelT[F[_], E, T] = EitherT[F, NonEmptyList[E], T]
